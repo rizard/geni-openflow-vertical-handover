@@ -1,0 +1,49 @@
+cal Handoff Solution Using OpenVswitch and the Floodlight OpenFlow Controller
+
+This is an OpenFlow implementation of a vertical handoff. It uses OpenVswitch, Floodlight, and a combination of shell and Python scripts. In the explanation below, a connection between a client and a server is desired. The basic structure is as follows:
+
+The client is configured with a tap network interface and multiple physical network interfaces. The client's physical network interfaces do not need to be on the same subnet. The server can be any machine within or outside the local area network of the client; however, the server should be able to reach the client at any of the client's physical network interfaces.
+
+The handoff solution is client-based. As such, the client runs all of the software described from here on out and the server is not configured in any way.
+
+All network traffic on the client is directed to a tap interface. This interface is connected to a OpenVswitch (OVS) network onboard the client. The OVS network consists of a single OVS bridge for every network adapter on the client (including the tap interface). All physical adapter OVS bridges are connected to the OVS bridge for the tap interface via an OVS patch port. The Floodlight OpenFlow controller is installed on the client and is connected to each OVS bridge. The idea is simple -- use the OpenFlow-enabled OVS bridges to forward all network traffic from the tap interface on the client to the physical interface we wish to use (and vice-versa).
+
+For example, let's say we have a client with a WiFi and an WiMAX network adapter, and the client wants to switch from the WiFi to the WiMAX adapter. Before the switch, OpenFlow "flows" are installed (via the Floodlight controller) on each OVS bridge to get from the tap interface to the WiFi interface. As such, there are flows present on the tap interface's bridge directing traffic to the WiFi interface's bridge (thru the patch ports). Once the packets are at the WiFi OVS bridge, there are flows present to direct the packets out the phyical WiFi adapter. However, these flows are different from the flows installed on the tap bridge -- they rewrite the source IP and MAC addresses of outbound packets to match that of the WiFi interface. Likewise, they rewrite the destination IP and MAC addresses of inbound packets to match that of the tap interface. In this way, once the packets leave the client, they will have network identifiers meaningful to the LAN of the WiFi interface; and once packets enter the client, they can be received at the tap interface no matter which physical interface they originated from.
+
+To switch from the WiFi interface to the WiMAX interface, we (1) REMOVE the flows on the tap OVS bridge that (a) direct packts to the WiFi OVS bridge and (b) switch packets from the WiFi OVS bridge to the WiFi network adapter and (2) add flows (a) from the tap OVS bridge to the WiMAX OVS bridge and (b) from the WiMAX OVS bridge to the WiMAX network adapter. The flows (2b) will rewrite the source and destination IP and MAC addresses of outbound and inbound packets, respectfully.
+
+Our implementation uses Python and shell scripts to perform the handoff (i.e. scripts to add and remove the flows from the OVS bridges). These scripts run on the client machine and leverage the Floodlight controller's Static Flow Pusher accessible via the REST API over the client's loopback address.
+
+Prerequisites:
+
+(1) Java JDK and JRE 1.6
+
+(2) Python 2.6.6 or later
+
+(3) curl 7.21.0 or later
+
+(4) sdparm 1.02 or later (required for Teltonika WiMAX USB Modem UM6225)
+
+Installation:
+
+There are three main components to this project: (1) OVS, (2) Floodlight, and (3) Python and shell scripts. All of the installation should be done on the client machine.
+
+The setup was developed and tested on Debian 6. It is currently being ported to Ubuntu 12.04 LTS -- we will update github with any details specific to Ubuntu as they become available.
+
+(1) Download (http://openvswitch.org/download/) and install (http://git.openvswitch.org/cgi-bin/gitweb.cgi?p=openvswitch;a=blob_plain;f=INSTALL;hb=HEAD) OpenVswitch version 1.7.1 or later. Be sure to compile and load the kernel module to allow OVS to run in the kernel space.
+
+(2) Download and install OpenVPN by running "sudo apt-get install openvpn".
+
+(3) Download (http://www.projectfloodlight.org/download/) and install the Floodlight OpenFlow controller. Use an IDE of your choosing (Eclipse is recommended; instructions are provided on Floodlight's website) and disable the forwarding module in Floodlight by removing it from the module loading list. Build and create a Java executable without the Forwarding module.
+
+(4) Download the Python and shell scripts from this project on github.
+
+Run:
+
+(1) Customize and run an initialization script. Included is an example rc.local script that should be run either automatically upon boot or manually as root after boot. In Debian, simply replace /etc/rc.local with the rc.local file provided or append it to your local version if you have commands present in your rc.local already. In Ubuntu, rc.local is located in /etc/init.d/rc.local. If you choose to save this file as your rc.local file, it will be run automatically upon boot after all other boot scripts have been executed. Otherwise, you will need to run it manually as root after you boot.
+
+This file initializes the WiMAX adapter, creates the tap interface, starts the Floodlight controller, initializes OpenVswitch and the bridges for each network interface, and disables kernel IP forwarding between physical interfaces. At the top of the script are numerous variable definitions, which can be changed to suit your environment, such as the Floodlight controller path, IP, OVS bridge names, available physical interfaces and names, etc.
+
+(2) Remove all routes from the kernel routing table, and add a default route via the tap interface configured by OpenVPN. Included is a script -- delete_route.sh -- which will accomplish this task. This will forward all IP traffic from the client into the OVS network, where OpenFlow flows will direct the packets to a physical interface and rewrite the headers to match that interface. Modify this script to correspond to the routes installed on your machine that you wish to remove. You should remove all routes and add a single default route to the tap interface. delete_route.sh by default includes the ability for a control interface. This will allow you to leave one network interface on the client for remote administration or possibly for running the Floodlight controller remotely. If you do not wish to use this feature, simply comment it out and remove it's route as well.
+
+(3) Install static flows in each OVS bridge in the path to the chosen physical interface. Provided are three scripts for switching interfaces -- eth_switch_0.py, wifi_switch_0.py, and wimax_switch_0.py. These scripts are what will allow the handoff to occur, and they are all very similar to one another. The difference lies in the port numbers and DPIDs of the OVS bridges. Depending on your implementation, OVS and/or Floodlight might use different port numbers. Simply run "curl http://:8080/wm/core/controller/switches/json | python -mjson.tool" to determine your port numbers.
