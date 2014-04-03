@@ -1,12 +1,15 @@
-cal Handoff Solution Using OpenVswitch and the Floodlight OpenFlow Controller
+Author: Ryan Izard
+Contact: rizard@g.clemson.edu
 
-This is an OpenFlow implementation of a vertical handoff. It uses OpenVswitch, Floodlight, and a combination of shell and Python scripts. In the explanation below, a connection between a client and a server is desired. The basic structure is as follows:
+Vertical Handoff Solution Using Open vSwitch and the Floodlight OpenFlow Controller
+
+This is an OpenFlow implementation of a vertical handoff. It uses Open vSwitch, Floodlight, and a combination of shell and Python scripts. In the explanation below, a connection between a client and a server is desired. The basic structure is as follows:
 
 The client is configured with a tap network interface and multiple physical network interfaces. The client's physical network interfaces do not need to be on the same subnet. The server can be any machine within or outside the local area network of the client; however, the server should be able to reach the client at any of the client's physical network interfaces.
 
 The handoff solution is client-based. As such, the client runs all of the software described from here on out and the server is not configured in any way.
 
-All network traffic on the client is directed to a tap interface. This interface is connected to a OpenVswitch (OVS) network onboard the client. The OVS network consists of a single OVS bridge for every network adapter on the client (including the tap interface). All physical adapter OVS bridges are connected to the OVS bridge for the tap interface via an OVS patch port. The Floodlight OpenFlow controller is installed on the client and is connected to each OVS bridge. The idea is simple -- use the OpenFlow-enabled OVS bridges to forward all network traffic from the tap interface on the client to the physical interface we wish to use (and vice-versa).
+All network traffic on the client is directed to a tap interface. This interface is connected to a Open vSwitch (OVS) network onboard the client. The OVS network consists of a single OVS bridge for every network adapter on the client (including the tap interface). All physical adapter OVS bridges are connected to the OVS bridge for the tap interface via an OVS patch port. The Floodlight OpenFlow controller is installed on the client and is connected to each OVS bridge. The idea is simple -- use the OpenFlow-enabled OVS bridges to forward all network traffic from the tap interface on the client to the physical interface we wish to use (and vice-versa).
 
 For example, let's say we have a client with a WiFi and an WiMAX network adapter, and the client wants to switch from the WiFi to the WiMAX adapter. Before the switch, OpenFlow "flows" are installed (via the Floodlight controller) on each OVS bridge to get from the tap interface to the WiFi interface. As such, there are flows present on the tap interface's bridge directing traffic to the WiFi interface's bridge (thru the patch ports). Once the packets are at the WiFi OVS bridge, there are flows present to direct the packets out the phyical WiFi adapter. However, these flows are different from the flows installed on the tap bridge -- they rewrite the source IP and MAC addresses of outbound packets to match that of the WiFi interface. Likewise, they rewrite the destination IP and MAC addresses of inbound packets to match that of the tap interface. In this way, once the packets leave the client, they will have network identifiers meaningful to the LAN of the WiFi interface; and once packets enter the client, they can be received at the tap interface no matter which physical interface they originated from.
 
