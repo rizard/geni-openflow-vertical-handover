@@ -10,7 +10,6 @@ net.floodlightcontroller.staticflowentry.StaticFlowEntryPusher
 net.floodlightcontroller.perfmon.PktInProcessingTime
 net.floodlightcontroller.perfmon.NullPktInProcessingTime
 net.floodlightcontroller.restserver.RestApiServer
-net.floodlightcontroller.sos.SOS
 net.floodlightcontroller.dhcpserver.DHCPServer
 net.floodlightcontroller.dhcpserver.DHCPSwitchFlowSetter
 net.floodlightcontroller.learningswitch.LearningSwitch
