@@ -248,6 +248,7 @@ public class DHCPServer implements IOFMessageListener, IFloodlightModule  {
 		floodlightProvider = context.getServiceImpl(IFloodlightProviderService.class);
 		sfp = context.getServiceImpl(IStaticFlowEntryPusherService.class);
 		log = LoggerFactory.getLogger(DHCPServer.class);
+		return;
 	}
 
 	@Override
@@ -287,12 +288,12 @@ public class DHCPServer implements IOFMessageListener, IFloodlightModule  {
 			WIFI_NODE_IP = IPv4.toIPv4Address(configOptions.get("wifi-node-ip"));
 
 			// NetBios and other options can be added to this function here as needed in the future
-		} catch(IllegalArgumentException ex) {
-			log.error("Incorrect DHCP Server configuration options", ex);
-			throw ex;
-		} catch(NullPointerException ex) {
-			log.error("Incorrect DHCP Server configuration options", ex);
-			throw ex;
+		} catch(IllegalArgumentException e) {
+			log.error("Incorrect DHCP Server configuration options", e);
+			throw e;
+		} catch(NullPointerException e) {
+			log.error("Incorrect DHCP Server configuration options", e);
+			throw e;
 		}
 		// Create our new DHCPPool object with the specific address size
 		theDHCPPool = new DHCPPool(DHCP_SERVER_IP_START, DHCP_SERVER_ADDRESS_SPACE_SIZE, log);
@@ -325,6 +326,7 @@ public class DHCPServer implements IOFMessageListener, IFloodlightModule  {
 				}
 				macs.clear();
 			}
+			return;
 		}
 
 		// The order of the DNS and NTP servers should be most reliable to least
