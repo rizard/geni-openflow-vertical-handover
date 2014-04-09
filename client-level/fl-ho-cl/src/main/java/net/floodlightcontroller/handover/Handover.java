@@ -29,6 +29,9 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONStringer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,16 +53,16 @@ public class Handover implements IFloodlightModule {
 	protected IFloodlightProviderService floodlightProvider;
 	protected IStaticFlowEntryPusherService sfp;
 
-	private static ScheduledThreadPoolExecutor lrcProbeMgr;
-	private static Runnable lrcProbe;
+	private static ScheduledThreadPoolExecutor grcProbeMgr;
+	private static Runnable grcProbe;
 	
 	private static GPSdEndpoint GPSD_CONN = null;
 	private static ResultParser GPSD_RESULT_PARSER = null;
 	private static int GPSD_TCP_PORT = 0; // default in GPSD of 2947
-	private static long LRC_PROBE_INTERVAL_SECONDS;
+	private static long GRC_PROBE_INTERVAL_SECONDS;
 	private final String HTTP_USER_AGENT = "Mozilla/5.0";
 	private final String HTTP_ACCEPT_LANGUAGE = "en-US,en;q=0.5";
-	private static String LRC_URL = null;
+	private static String GRC_URL = null;
 
 
 	
@@ -90,13 +93,13 @@ public class Handover implements IFloodlightModule {
 	public void startUp(FloodlightModuleContext context) {
 		Map<String, String> configOptions = context.getConfigParams(this);
 		try {
-			LRC_PROBE_INTERVAL_SECONDS = Long.parseLong(configOptions.get("lrc-probe-interval-seconds"));
+			GRC_PROBE_INTERVAL_SECONDS = Long.parseLong(configOptions.get("grc-probe-interval-seconds"));
 			GPSD_TCP_PORT = Integer.parseInt(configOptions.get("gpsd-tcp-port"));
-			LRC_URL = configOptions.get("lrc-url");
+			GRC_URL = configOptions.get("grc-url");
 
 		} catch(Exception e) {
 			log.error("Incorrect Handover configuration options", e);
-			throw e;
+			//throw e;
 		}
 		
 		/*try {
@@ -115,17 +118,17 @@ public class Handover implements IFloodlightModule {
 			throw e;
 		}*/
 
-		// Periodically ask LRC for a handover decision
-		lrcProbeMgr = new ScheduledThreadPoolExecutor(1);
-		lrcProbe = new LRCProbe();
-		lrcProbeMgr.scheduleAtFixedRate(lrcProbe, 10, LRC_PROBE_INTERVAL_SECONDS, TimeUnit.SECONDS);
+		// Periodically ask GRC for a handover decision
+		grcProbeMgr = new ScheduledThreadPoolExecutor(1);
+		grcProbe = new GRCProbe();
+		grcProbeMgr.scheduleAtFixedRate(grcProbe, 10, GRC_PROBE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 		return;
 	}
 	 
 	// HTTP GET request
 	/*private void sendGet() throws Exception {
   
-		URL obj = new URL(LRC_URL);
+		URL obj = new URL(GRC_URL);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
  
 		// optional default is GET
@@ -147,95 +150,67 @@ public class Handover implements IFloodlightModule {
 		}
 		in.close();
 
-		log.debug("Got LRC Response: " + response.toString());
+		log.debug("Got GRC Response: " + response.toString());
 		
 		return;
 	}*/
  
 	// HTTP POST request
-	private String askLRC() {
+	private String askGRC() {
 		try {
 			CloseableHttpClient httpclient = HttpClients.createDefault();
-			HttpPost httpPost = new HttpPost(LRC_URL);
+			HttpPost httpPost = new HttpPost(GRC_URL);
 			List <NameValuePair> nvps = new ArrayList <NameValuePair>();
-			nvps.add(new BasicNameValuePair("interfaces", "wlan0"));
-			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-			ResponseHandler<String> responseHandler = new ResponseHandler<String>(){
-
-				@Override
-				public String handleResponse(HttpResponse arg0)
-						throws ClientProtocolException, IOException {
-					int status = arg0.getStatusLine().getStatusCode();
-					if(status >= 200 && status < 300){
-						HttpEntity entity = arg0.getEntity();
-						return entity != null ? EntityUtils.toString(entity) : null;
-					}
-					return null;
-				}
-				
-			};
-			String responseBody = httpclient.execute(httpPost, responseHandler);
-			log.debug("Response: " + responseBody);
-			//CloseableHttpResponse response2 = httpclient.execute(httpPost);
-
-			/*try {
-			    //System.out.println(response2.getStatusLine());
-			    HttpEntity entity2 = response2.getEntity();
-			    // do something useful with the response body
-			    // and ensure it is fully consumed
-			    EntityUtils.consume(entity2);
-			    log.debug("Response: " + response2.);
-			} finally {
-			    response2.close();
-			}*/
 			
+			//we need a list of all interface names, this shouldn't be hard coded
+			ArrayList<String> interface_names = new ArrayList<String>();
+			interface_names.add("wmx0");
+			interface_names.add("eth0");
+			interface_names.add("wlan0");
 			
-			/*URL obj = new URL(LRC_URL);
-			HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-
-			// add request header
-			con.setRequestMethod("POST");
-			con.setRequestProperty("User-Agent", HTTP_USER_AGENT);
-			con.setRequestProperty("Accept-Language", HTTP_ACCEPT_LANGUAGE);
-
-			String urlParameters = "?interfaces=wlan0";
-
-			// Send post request
-			con.setDoOutput(true);
-			DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-			wr.writeBytes(urlParameters);
-			wr.flush();
-			wr.close();
-
-			int responseCode = con.getResponseCode();
-			log.debug("Sending 'POST' request to URL: " + obj.getRef() + " with Params: " + urlParameters);
-			log.debug("Got Response Code: " + responseCode);
-
-
-			BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-			String inputLine;
-			StringBuffer response = new StringBuffer();
-
-			while ((inputLine = in.readLine()) != null) {
-				response.append(inputLine);
+			//create a JSON object for every interface name, containing collected details
+			ArrayList<JSONObject> ifaceObjs = new ArrayList<JSONObject>();
+			for(String iface : interface_names){
+				JSONObject obj = new JSONObject();
+				obj.put("name", iface);
+				obj.put("signalDbm", -60);
+				ifaceObjs.add(obj);
 			}
-			in.close();
-
-			log.debug("Got LRC Response: " + response.toString());
-			return response.toString();*/
+			
+			//create a JSON array containing all of our JSON objects, and include it in our request
+			JSONArray jInterfacesArray = new JSONArray(ifaceObjs);
+			nvps.add(new BasicNameValuePair("interfaces", jInterfacesArray.toString()));
+			
+			//set POST parameters and execute request
+			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+			HttpResponse response = httpclient.execute(httpPost);
+			int status = response.getStatusLine().getStatusCode();
+			
+			//retreive JSON response
+			String body;
+			if(status >= 200 && status < 300){
+				HttpEntity entity = response.getEntity();
+				body = EntityUtils.toString(entity);
+			} else {
+				body = "ERROR";
+			}
+			
+			//parse JSON response
+			JSONObject responseObj = new JSONObject(body);
+			log.debug("Switching to: " + responseObj.getString("interface"));
 		} catch(Exception e) {
 			e.printStackTrace();
 		} 
 		return null;
 	}
 	
-	class LRCProbe implements Runnable {
+	class GRCProbe implements Runnable {
 		@Override
 		public void run() {
-			log.info("Asking LRC (Cybertiger) for a handover decision...");
+			log.info("Asking GRC (Cybertiger) for a handover decision...");
 			// do it here
-			String response = askLRC();
+			String response = askGRC();
 			return;
 		}
-	} // END LRCProbe Class
+	} // END GRCProbe Class
 } // END Handover Module
