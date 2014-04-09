@@ -1,0 +1,363 @@
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+## exit 0
+###################
+#USR DEF VARIABLES#
+###################
+IFACE_bridge_eth=br_eth
+IFACE_bridge_wlan0=br_wifi0
+IFACE_bridge_wlan1=br_wifi1
+IFACE_bridge_wimax=br_wimax
+IFACE_bridge_int=br_tap
+IFACE_bridge=bridge
+IFACE_tap=tap0
+IFACE_tap_IP=10.0.0.10
+IFACE_wimax=eth5
+IFACE_ethernet=eth3
+IFACE_wlan0=ath4
+IFACE_wlan1=ath5
+IFACE_patch_tap_to_eth=tap-eth
+IFACE_patch_tap_to_wlan0=tap-wlan0
+IFACE_patch_tap_to_wlan1=tap-wlan1
+IFACE_patch_tap_to_wimax=tap-wimax
+IFACE_patch_eth_to_tap=eth-tap
+IFACE_patch_wlan0_to_tap=wlan0-tap
+IFACE_patch_wlan1_to_tap=wlan1-tap
+IFACE_patch_wimax_to_tap=wimax-tap
+OVS_switchDPID_eth=0000000000000001
+OVS_switchDPID_wlan0=0000000000000002
+OVS_switchDPID_wlan1=0000000000000003
+OVS_switchDPID_wimax=0000000000000004
+OVS_switchDPID_tap=0000000000000005
+port_tap0=1
+port_tap_to_eth=15
+port_tap_to_wimax=3
+port_tap_to_wlan0=4
+port_tap_to_wlan1=5
+port_eth3=1
+port_eth_to_tap=20
+port_eth4=1
+port_wimax_to_tap=2
+port_ath4=1
+port_wlan0_to_tap=2
+port_ath5=1
+port_wlan1_to_tap=2
+#OVS_controllerIP=127.0.0.1:6633
+#FL_contRESTIP=127.0.0.1
+OVS_controllerIP=130.127.39.211:6677
+FL_contRESTIP=130.127.39.211
+FL_initial_flows_script=fddress.py
+WIMAX_DEV_NAME=/dev/sg1
+
+#################
+#ADD WIMAX IFACE#
+#################
+
+echo "WM: Installing WiMAX device on $WIMAX_DEV_NAME..."
+if [ -e $WIMAX_DEV_NAME ]
+then
+	echo "WM: ...done"
+	sdparm --command=eject $WIMAX_DEV_NAME &
+else
+	echo "WM: ...already found $WIMAX_DEV_NAME"
+fi
+sleep 3
+ echo "WM: Initializing interface $IFACE_wimax"
+## dhclient $IFACE_wimax
+
+###############
+#ADD TAP IFACE#
+###############
+
+echo "OVPN: Installing tap interface, $IFACE_tap"
+openvpn --mktun --dev $IFACE_tap --lladdr 12:51:16:90:8f:ee
+
+##################
+#START FLOODLIGHT#
+##################
+
+## echo "FL: Killing running Floodlight process..."
+## (pkill -9 -f floodlight) > /dev/null
+
+echo "FL: Starting Floodlight..."
+#Modify the following script to change debugging output (set to WARN)
+#cd / && ((java -jar ./root/floodlight-sfp/target/floodlight.jar) > floodlight-output 2>&1 &)
+#cd / && ((java -jar ./root/floodlight.jar) > floodlight-output 2>&1 &)
+echo "FL: Finished!"
+
+cd root
+
+###################
+#START OPENVSWITCH#
+###################
+
+echo "OVS: Configuring OVS..."
+echo "OVS: Checking for kernel module..."
+if [ -e $(lsmod | grep openvswitch) ]
+then
+	echo "OVS: ...inserting kernel module"
+	insmod /root/openvswitch-1.7.1/datapath/linux/openvswitch.ko
+else
+	echo "OVS: ...kernel module already present"
+fi
+##################################################################
+## echo "OVS: Killing all running OVS processes..."
+## (pkill -9 -f ovsdb-server > /dev/null 2>&1)
+## (pkill -9 -f ovs-vswitchd > /dev/null 2>&1)
+## (pkill -9 -f ovs_workq > /dev/null 2>&1)
+## sleep 3
+##################################################################
+echo "OVS: Creating database"
+ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
+--remote=db:Open_vSwitch,manager_options \
+--private-key=db:SSL,private_key \
+--certificate=db:SSL,certificate \
+--bootstrap-ca-cert=db:SSL,ca_cert \
+--pidfile --detach
+echo "OVS: Initializing OVS..."
+ovs-vsctl --no-wait init
+echo "OVS: Starting OVS..."
+ovs-vswitchd --pidfile --detach
+###################################################################
+echo "OVS: Removing any existing bridge, $IFACE_bridge_eth $IFACE_bridge_wlan0"
+echo "OVS: $IFACE_bridge_wlan1 $IFACE_bridge_wimax ..."
+
+## Generic "bridge"
+if [ -n "$(ovs-vsctl show | grep $IFACE_bridge)" ]
+then
+	echo "OVS: ...removing $IFACE_bridge"
+	ovs-vsctl del-br $IFACE_bridge
+fi
+
+## Ethernet
+if [ -n "$(ovs-vsctl show | grep $IFACE_bridge_eth)" ]
+then
+	echo "OVS: ...removing $IFACE_bridge_eth"
+	ovs-vsctl del-br $IFACE_bridge_eth
+fi
+
+## Wlan0
+echo "OVS: Removing any existing bridge, $IFACE_bridge_wlan0..."
+if [ -n "$(ovs-vsctl show | grep $IFACE_bridge_wlan0)" ]
+then
+        echo "OVS: ...removing $IFACE_bridge_wlan0"
+        ovs-vsctl del-br $IFACE_bridge_wlan0
+fi
+
+## Wlan1
+if [ -n "$(ovs-vsctl show | grep $IFACE_bridge_wlan1)" ]
+then
+	echo "OVS: ...removing $IFACE_bridge_wlan1"
+	ovs-vsctl del-br $IFACE_bridge_wlan1
+fi
+
+## WiMAX
+if [ -n "$(ovs-vsctl show | grep $IFACE_bridge_wimax)" ]
+then
+	echo "OVS: ...removing $IFACE_bridge_wimax"
+	ovs-vsctl del-br $IFACE_bridge_wimax
+fi
+
+## Internal
+if [ -n "$(ovs-vsctl show | grep $IFACE_bridge_int)" ]
+then
+	echo "OVS: ...removing $IFACE_bridge_int"
+	ovs-vsctl del-br $IFACE_bridge_int
+fi
+
+## All
+## echo "OVS: Adding interface bridge, $IFACE_bridge..."
+## ovs-vsctl add-br $IFACE_bridge
+## echo "OVS: ...with port $IFACE_ethernet"
+## ovs-vsctl add-port $IFACE_bridge $IFACE_ethernet
+## echo "OVS: ...with port $IFACE_wlan0"
+## ovs-vsctl add-port $IFACE_bridge $IFACE_wlan0
+## echo "OVS: ...with port $IFACE_wlan1"
+## ovs-vsctl add-port $IFACE_bridge $IFACE_wlan1
+## echo "OVS: ...with port $IFACE_wimax"
+## ovs-vsctl add-port $IFACE_bridge $IFACE_wimax
+## echo "OVS: ...with port $IFACE_tap"
+## ovs-vsctl add-port $IFACE_bridge $IFACE_tap
+
+## Ethernet
+#echo "OVS: Adding interface bridge, $IFACE_bridge_eth..."
+#ovs-vsctl add-br $IFACE_bridge_eth
+#echo "OVS: ...with port $IFACE_eth"
+#ovs-vsctl add-port $IFACE_bridge_eth $IFACE_ethernet -- set Interface $IFACE_ethernet ofport=$port_eth3
+#echo "OVS: ...with port $IFACE_patch_eth_to_tap"
+#ovs-vsctl add-port $IFACE_bridge_eth $IFACE_patch_eth_to_tap -- set Interface $IFACE_patch_eth_to_tap ofport=$port_eth_to_tap
+
+## Wlan0
+echo "OVS: Adding interface bridge, $IFACE_bridge_wlan0..."
+ovs-vsctl add-br $IFACE_bridge_wlan0
+echo "OVS: ...with port $IFACE_wlan0"
+ovs-vsctl add-port $IFACE_bridge_wlan0 $IFACE_wlan0
+echo "OVS: ...with port $IFACE_patch_wlan0_to_tap"
+ovs-vsctl add-port $IFACE_bridge_wlan0 $IFACE_patch_wlan0_to_tap
+
+## Wlan1
+##echo "OVS: Adding interface bridge, $IFACE_bridge_wlan1..."
+##ovs-vsctl add-br $IFACE_bridge_wlan1
+##echo "OVS: ...with port $IFACE_wlan1"
+##ovs-vsctl add-port $IFACE_bridge_wlan1 $IFACE_wlan1
+##echo "OVS: ...with port $IFACE_patch_wlan1_to_tap"
+##ovs-vsctl add-port $IFACE_bridge_wlan1 $IFACE_patch_wlan1_to_tap
+
+## WiMAX
+echo "OVS: Adding interface bridge, $IFACE_bridge_wimax..."
+ovs-vsctl add-br $IFACE_bridge_wimax
+echo "OVS: ...with port $IFACE_wimax"
+ovs-vsctl add-port $IFACE_bridge_wimax $IFACE_wimax -- set Interface $IFACE_wimax ofport=$port_eth4
+echo "OVS: ...with port $IFACE_patch_wimax_to_tap"
+ovs-vsctl add-port $IFACE_bridge_wimax $IFACE_patch_wimax_to_tap -- set Interface $IFACE_patch_wimax_to_tap ofport=$port_wimax_to_tap
+
+## Internal
+echo "OVS: Adding interface bridge, $IFACE_bridge_int..."
+ovs-vsctl add-br $IFACE_bridge_int
+echo "OVS: ...with port $IFACE_tap"
+ovs-vsctl add-port $IFACE_bridge_int $IFACE_tap -- set Interface $IFACE_tap ofport=$port_tap0
+#echo "OVS: ...with port $IFACE_patch_tap_to_eth"
+#ovs-vsctl add-port $IFACE_bridge_int $IFACE_patch_tap_to_eth -- set Interface $IFACE_patch_tap_to_eth ofport=$port_tap_to_eth
+echo "OVS: ...with port $IFACE_patch_tap_to_wlan0"
+ovs-vsctl add-port $IFACE_bridge_int $IFACE_patch_tap_to_wlan0 -- set Interface $IFACE_patch_tap_to_wlan0 ofport=$port_tap_to_wlan0
+##echo "OVS: ...with port $IFACE_patch_tap_to_wlan1"
+##ovs-vsctl add-port $IFACE_bridge_int $IFACE_patch_tap_to_wlan1 -- set Interface $IFACE_patch_tap_to_wlan1 ofport=$port_tap_to_wlan1
+echo "OVS: ...with port $IFACE_patch_tap_to_wimax"
+ovs-vsctl add-port $IFACE_bridge_int $IFACE_patch_tap_to_wimax -- set Interface $IFACE_patch_tap_to_wimax ofport=$port_tap_to_wimax
+
+
+##########################
+#CONFIGURE NETWORK ACCESS#
+##########################
+
+## Disable IP on physical interfaces
+echo "NTWK: Taking down $IFACE_ethernet..."
+ifconfig $IFACE_ethernet 0.0.0.0
+dhclient $IFACE_ethernet
+##echo "NTWK: Taking down $IFACE_wimax..."
+ifconfig $IFACE_wimax 0.0.0.0
+##echo "NTWK: Taking down $IFACE_wlan0..."
+ifconfig $IFACE_wlan0 0.0.0.0
+##echo "NTWK: Taking down $IFACE_wlan1..."
+##ifconfig $IFACE_wlan1 0.0.0.0
+
+## Assign static IP addresses for bridge interfaces
+echo "NTWK: Assigning $IFACE_bridge_int IP as $IFACE_tap_IP..."
+ifconfig $IFACE_bridge_int $IFACE_tap_IP
+
+## Get an IP for bridge interfaces using DHCP
+echo "NTWK: Assigning $IFACE_bridge_wimax IP via dhclient..."
+dhclient $IFACE_bridge_wimax
+echo "NTWK: Assigning $IFACE_bridge_eth IP via dhclient..."
+##ifconfig $IFACE_bridge_eth 0.0.0.0
+##ifconfig $IFACE_bridge_eth 12.0.0.15 netmask 255.255.255.0
+#dhclient $IFACE_bridge_eth
+echo "NTWK: Assigning $IFACE_bridge_wlan0 IP via dhclient..."
+ifconfig $IFACE_bridge_wlan0 0.0.0.0
+iwconfig $IFACE_wlan0 essid GEC-Demo-AP1 channel 6 mode managed
+dhclient $IFACE_bridge_wlan0
+## echo "NTWK: Assigning $IFACE_bridge_wlan1 IP via dhclient..."
+## dhclient $IFACE_bridge_wlan1
+
+
+
+## Set patch ports
+#echo "OVS: Patching ports $IFACE_patch_tap_to_eth, $IFACE_patch_eth_to_tap"
+#ovs-vsctl set interface $IFACE_patch_tap_to_eth type=patch
+#ovs-vsctl set interface $IFACE_patch_tap_to_eth options:peer=$IFACE_patch_eth_to_tap
+#ovs-vsctl set interface $IFACE_patch_eth_to_tap type=patch
+#ovs-vsctl set interface $IFACE_patch_eth_to_tap options:peer=$IFACE_patch_tap_to_eth
+
+echo "OVS: Patching ports $IFACE_patch_tap_to_wlan0, $IFACE_patch_wlan0_to_tap"
+ovs-vsctl set interface $IFACE_patch_tap_to_wlan0 type=patch
+ovs-vsctl set interface $IFACE_patch_tap_to_wlan0 options:peer=$IFACE_patch_wlan0_to_tap
+ovs-vsctl set interface $IFACE_patch_wlan0_to_tap type=patch
+ovs-vsctl set interface $IFACE_patch_wlan0_to_tap options:peer=$IFACE_patch_tap_to_wlan0
+
+##echo "OVS: Patching ports $IFACE_patch_tap_to_wlan1, $IFACE_patch_wlan1_to_tap"
+##ovs-vsctl set interface $IFACE_patch_tap_to_wlan1 type=patch
+##ovs-vsctl set interface $IFACE_patch_tap_to_wlan1 options:peer=$IFACE_patch_wlan1_to_tap
+##ovs-vsctl set interface $IFACE_patch_wlan1_to_tap type=patch
+##ovs-vsctl set interface $IFACE_patch_wlan1_to_tap options:peer=$IFACE_patch_tap_to_wlan1
+
+#echo "OVS: Patching ports $IFACE_patch_tap_to_wimax, $IFACE_patch_wimax_to_tap"
+ovs-vsctl set interface $IFACE_patch_tap_to_wimax type=patch
+ovs-vsctl set interface $IFACE_patch_tap_to_wimax options:peer=$IFACE_patch_wimax_to_tap
+ovs-vsctl set interface $IFACE_patch_wimax_to_tap type=patch
+ovs-vsctl set interface $IFACE_patch_wimax_to_tap options:peer=$IFACE_patch_tap_to_wimax
+
+ifconfig lo up
+
+## Set Eth DPID
+#echo "OVS: Setting $IFACE_bridge_eth DPID to $OVS_switchDPID_eth..."
+#ovs-vsctl set bridge $IFACE_bridge_eth other-config:datapath-id=$OVS_switchDPID_eth
+
+## Set Wlan0 DPID
+echo "OVS: Setting $IFACE_bridge_wlan0 DPID to $OVS_switchDPID_wlan0..."
+ovs-vsctl set bridge $IFACE_bridge_wlan0 other-config:datapath-id=$OVS_switchDPID_wlan0
+
+## Set Wlan1 DPID
+##echo "OVS: Setting $IFACE_bridge_wlan1 DPID to $OVS_switchDPID_wlan1..."
+##ovs-vsctl set bridge $IFACE_bridge_wlan1 other-config:datapath-id=$OVS_switchDPID_wlan1
+
+## Set WiMAX DPID
+echo "OVS: Setting $IFACE_bridge_wimax DPID to $OVS_switchDPID_wimax..."
+ovs-vsctl set bridge $IFACE_bridge_wimax other-config:datapath-id=$OVS_switchDPID_wimax
+
+## Set Tap DPID
+echo "OVS: Setting $IFACE_bridge_int DPID to $OVS_switchDPID_tap..."
+ovs-vsctl set bridge $IFACE_bridge_int other-config:datapath-id=$OVS_switchDPID_tap
+
+## Ethernet
+#echo "OVS: Connecting $IFACE_bridge_eth to controller at $OVS_controllerIP"
+#ovs-vsctl set-controller $IFACE_bridge_eth tcp:$OVS_controllerIP
+
+## Wlan0
+echo "OVS: Connecting $IFACE_bridge_wlan0 to controller at $OVS_controllerIP"
+ovs-vsctl set-controller $IFACE_bridge_wlan0 tcp:$OVS_controllerIP
+
+## Wlan1
+##echo "OVS: Connecting $IFACE_bridge_wlan1 to controller at $OVS_controllerIP"
+##ovs-vsctl set-controller $IFACE_bridge_wlan1 tcp:$OVS_controllerIP
+
+## WiMAX
+echo "OVS: Connecting $IFACE_bridge_wimax to controller at $OVS_controllerIP"
+ovs-vsctl set-controller $IFACE_bridge_wimax tcp:$OVS_controllerIP
+
+## Internal
+echo "OVS: Connecting $IFACE_bridge_int to controller at $OVS_controllerIP"
+ovs-vsctl set-controller $IFACE_bridge_int tcp:$OVS_controllerIP
+
+ovs-vsctl set bridge br_tap other-config:hwaddr=12:51:16:90:8f:ee
+
+echo "OVS: Finished!"
+
+
+## Turn off IP Forwarding
+echo "NTWK: Disabling IP Forwarding..."
+echo "0" > /proc/sys/net/ipv4/ip_forward 
+
+
+## Set up initial interface to use
+##echo "NTWK: Clearing routing table..."
+##route delete default
+## somehow delete all routes not "br_tap" here...
+##echo "NTWK: Adding default route through $IFACE_bridge_int..."
+##route add default dev $IFACE_bridge_int
+
+## Create a circuit for initial connectivity
+##echo "FL: Pushing flows for initial $IFACE_ethernet connectivity..."
+##cd /root && (python $FL_initial_flows_script)
+
+exit 0

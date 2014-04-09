@@ -1,0 +1,8 @@
+curl -d '{"switch":"00:11:22:33:44:55:66:77", "name":"src->dst, ether", "priority":"32768", "active":"true", "actions":"output=EthIfacePortNum,set-src-ip=EthIfaceIP,set-src-mac=EthIfaceMAC", "ether-type":"0x800", "ingress-port":"TapIfacePortNum"}' http://127.0.0.1:8080/wm/staticflowentrypusher/json
+
+curl -d '{"switch":"00:11:22:33:44:55:66:77", "name":"src<-dst, ether", "priority":"32768", "active":"true", "actions":"output=TapIfacePortNum,set-dst-ip=TapIfaceIP,set-dst-mac=TapIfaceMAC", "ether-type":"0x800", "ingress-port":"EthIfacePortNum"}' http://127.0.0.1:8080/wm/staticflowentrypusher/json
+
+curl -d '{"switch":"00:11:22:33:44:55:66:77", "name":"src->dst, arp", "priority":"32768", "active":"true", "actions":"output=EthIfacePortNum,set-src-ip=EthIfaceIP,set-src-mac=EthIfaceMAC, "ether-type":"0x806", "ingress-port":"TapIfacePortNum"}' http://127.0.0.1:8080/wm/staticflowentrypusher/json
+
+curl -d '{"switch":"00:11:22:33:44:55:66:77", "name":"src<-dst, arp", "priority":"32768", "active":"true", "actions":"output=TapIfacePortNum,set-dst-ip=TapIfaceIP,set-dst-mac=TapIfaceMAC", "ether-type":"0x806", "ingress-port":"EthIfacePortNum"}' http://127.0.0.1:8080/wm/staticflowentrypusher/json
+
