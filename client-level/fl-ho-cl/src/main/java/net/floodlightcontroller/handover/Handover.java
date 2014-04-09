@@ -96,7 +96,7 @@ public class Handover implements IFloodlightModule {
 
 		} catch(Exception e) {
 			log.error("Incorrect Handover configuration options", e);
-			throw e;
+			//throw e;
 		}
 		
 		/*try {
