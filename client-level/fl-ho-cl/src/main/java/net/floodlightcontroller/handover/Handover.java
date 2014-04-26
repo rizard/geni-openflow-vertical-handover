@@ -162,24 +162,25 @@ public class Handover implements IFloodlightModule {
 			HttpPost httpPost = new HttpPost(GRC_URL);
 			List <NameValuePair> nvps = new ArrayList <NameValuePair>();
 			
-			//we need a list of all interface names, this shouldn't be hard coded
-			ArrayList<String> interface_names = new ArrayList<String>();
-			interface_names.add("wmx0");
-			interface_names.add("eth0");
-			interface_names.add("wlan0");
+			//we need a list of all available network types, this shouldn't be hard coded
+			ArrayList<String> networkTypes = new ArrayList<String>();
+			networkTypes.add("WiMAX");
+			networkTypes.add("Wifi");
 			
 			//create a JSON object for every interface name, containing collected details
-			ArrayList<JSONObject> ifaceObjs = new ArrayList<JSONObject>();
-			for(String iface : interface_names){
+			ArrayList<JSONObject> netTypeObjs = new ArrayList<JSONObject>();
+			for(String netType : networkTypes){
 				JSONObject obj = new JSONObject();
-				obj.put("name", iface);
-				obj.put("signalDbm", -60);
-				ifaceObjs.add(obj);
+				obj.put("name", netType);
+				obj.put("operator", netType.equals("Wifi")? "" :"Clemson");
+				netTypeObjs.add(obj);
 			}
 			
 			//create a JSON array containing all of our JSON objects, and include it in our request
-			JSONArray jInterfacesArray = new JSONArray(ifaceObjs);
-			nvps.add(new BasicNameValuePair("interfaces", jInterfacesArray.toString()));
+			JSONArray jNetTypesArray = new JSONArray(netTypeObjs);
+			nvps.add(new BasicNameValuePair("latitude", "34.6813"));
+			nvps.add(new BasicNameValuePair("longitude", "-82.8326"));
+			nvps.add(new BasicNameValuePair("network_types", jNetTypesArray.toString()));
 			
 			//set POST parameters and execute request
 			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
@@ -197,7 +198,7 @@ public class Handover implements IFloodlightModule {
 			
 			//parse JSON response
 			JSONObject responseObj = new JSONObject(body);
-			log.debug("Switching to: " + responseObj.getString("interface"));
+			log.debug("Switching to: " + responseObj.getString("network"));
 		} catch(Exception e) {
 			e.printStackTrace();
 		} 
