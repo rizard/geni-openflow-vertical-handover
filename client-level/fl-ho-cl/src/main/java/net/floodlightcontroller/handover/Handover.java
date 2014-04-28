@@ -196,7 +196,7 @@ public class Handover implements IFloodlightModule {
 
 		ACTIVE_FLOWS = new ArrayList<String>();
 
-		/*try {
+		try {
 			GPSD_RESULT_PARSER = new ResultParser();
 			GPSD_CONN = new GPSdEndpoint("127.0.0.1", GPSD_TCP_PORT, GPSD_RESULT_PARSER);
 			GPSD_CONN.start();
@@ -210,7 +210,7 @@ public class Handover implements IFloodlightModule {
 		} catch (NullPointerException e) {
 			e.printStackTrace();
 			throw e;
-		}*/
+		}
 
 		// Periodically ask GRC for a handover decision
 		grcProbeMgr = new ScheduledThreadPoolExecutor(1);
