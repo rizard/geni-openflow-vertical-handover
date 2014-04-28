@@ -79,39 +79,43 @@ public class Handover implements IFloodlightModule {
 	private static String OVS_WIMAX0_DPID;
 	private static String OVS_WIMAX1_DPID;
 	private static String OVS_ETHERNET_DPID;
-	
+
 	private static byte[] TAP_MAC;
 	private static byte[] WIFI0_MAC;
 	private static byte[] WIFI1_MAC;
 	private static byte[] WIMAX0_MAC;
 	private static byte[] WIMAX1_MAC;
 	private static byte[] ETHERNET_MAC;
-	
+
+	private static String TAP_IFACE_NAME;
+	private static String WIFI0_IFACE_NAME;
+	private static String WIFI1_IFACE_NAME;
+	private static String WIMAX0_IFACE_NAME;
+	private static String WIMAX1_IFACE_NAME;
+	private static String ETHERNET_IFACE_NAME;
+
 	private static short OVS_TAP_TO_WIFI0_PATCH;
 	private static short OVS_TAP_TO_WIFI1_PATCH;
 	private static short OVS_TAP_TO_WIMAX0_PATCH;
 	private static short OVS_TAP_TO_WIMAX1_PATCH;
 	private static short OVS_TAP_TO_ETHERNET_PATCH;
-	
+
 	private static short OVS_WIFI0_TO_TAP_PATCH;
 	private static short OVS_WIFI1_TO_TAP_PATCH;
 	private static short OVS_WIMAX0_TO_TAP_PATCH;
 	private static short OVS_WIMAX1_TO_TAP_PATCH;
 	private static short OVS_ETHERNET_TO_TAP_PATCH;
-	
+
 	private static short OVS_TAP_LOCAL_PORT;
 	private static short OVS_WIFI0_IFACE_PORT;
 	private static short OVS_WIFI1_IFACE_PORT;
 	private static short OVS_WIMAX0_IFACE_PORT;
 	private static short OVS_WIMAX1_IFACE_PORT;
 	private static short OVS_ETHERNET_IFACE_PORT;
-	
-	private static enum INTERFACES {
-		WIFI0, WIFI1, WIMAX0, WIMAX1, ETHERNET, OFFLINE
-	}
-	
+
 	private static ArrayList<String> ACTIVE_FLOWS;
-	private static INTERFACES ACTIVE_INTERFACE = INTERFACES.OFFLINE;
+	private static final String OFFLINE = "offline";
+	private static String ACTIVE_INTERFACE = OFFLINE;
 
 	@Override
 	public Collection<Class<? extends IFloodlightService>> getModuleServices() {
@@ -143,32 +147,13 @@ public class Handover implements IFloodlightModule {
 			GRC_PROBE_INTERVAL_SECONDS = Long.parseLong(configOptions.get("grc-probe-interval-seconds"));
 			GPSD_TCP_PORT = Integer.parseInt(configOptions.get("gpsd-tcp-port"));
 			GRC_URL = configOptions.get("grc-url");
-			
-			OVS_TAP_DPID = configOptions.get("ovs-tap-dpid");
-			OVS_WIFI0_DPID = configOptions.get("ovs-wifi0-dpid");
-			OVS_WIFI1_DPID = configOptions.get("ovs-wifi1-dpid");
-			OVS_WIMAX0_DPID = configOptions.get("ovs-wimax0-dpid");
-			OVS_WIMAX1_DPID = configOptions.get("ovs-wimax1-dpid");
-			OVS_ETHERNET_DPID = configOptions.get("ovs-ethernet-dpid");
-			
-			OVS_TAP_TO_WIFI0_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-wifi0-patch"));
-			OVS_TAP_TO_WIFI1_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-wifi1-patch"));
-			OVS_TAP_TO_WIMAX0_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-wimax0-patch"));
-			OVS_TAP_TO_WIMAX1_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-wimax1-patch"));
-			OVS_TAP_TO_ETHERNET_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-ethernet-patch"));
-			
-			OVS_WIFI0_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-wifi0-to-tap-patch"));
-			OVS_WIFI1_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-wifi1-to-tap-patch"));
-			OVS_WIMAX0_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-wimax0-to-tap-patch"));
-			OVS_WIMAX1_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-wimax1-to-tap-patch"));
-			OVS_ETHERNET_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-ethernet-to-tap-patch"));
-			
-			OVS_TAP_LOCAL_PORT = Short.parseShort(configOptions.get("ovs-tap-local-port"));
-			OVS_WIFI0_IFACE_PORT = Short.parseShort(configOptions.get("ovs-wifi0-iface-port"));
-			OVS_WIFI1_IFACE_PORT = Short.parseShort(configOptions.get("ovs-wifi1-iface-port"));
-			OVS_WIMAX0_IFACE_PORT = Short.parseShort(configOptions.get("ovs-wimax0-iface-port"));
-			OVS_WIMAX1_IFACE_PORT = Short.parseShort(configOptions.get("ovs-wimax1-iface-port"));
-			OVS_ETHERNET_IFACE_PORT = Short.parseShort(configOptions.get("ovs-ethernet-iface-port"));
+
+			TAP_IFACE_NAME = configOptions.get("tap-iface-name");
+			WIFI0_IFACE_NAME = configOptions.get("wifi0-iface-name");
+			WIFI1_IFACE_NAME = configOptions.get("wifi1-iface-name");
+			WIMAX0_IFACE_NAME = configOptions.get("wimax0-iface-name");
+			WIMAX1_IFACE_NAME = configOptions.get("wimax1-iface-name");
+			ETHERNET_IFACE_NAME = configOptions.get("ethernet-iface-name");
 
 			TAP_MAC = Ethernet.toMACAddress(configOptions.get("tap-mac"));
 			WIFI0_MAC = Ethernet.toMACAddress(configOptions.get("wifi0-mac"));
@@ -177,11 +162,38 @@ public class Handover implements IFloodlightModule {
 			WIMAX1_MAC = Ethernet.toMACAddress(configOptions.get("wimax1-mac"));
 			ETHERNET_MAC = Ethernet.toMACAddress(configOptions.get("ethernet-mac"));
 
+
+			OVS_TAP_DPID = configOptions.get("ovs-tap-dpid");
+			OVS_WIFI0_DPID = configOptions.get("ovs-wifi0-dpid");
+			OVS_WIFI1_DPID = configOptions.get("ovs-wifi1-dpid");
+			OVS_WIMAX0_DPID = configOptions.get("ovs-wimax0-dpid");
+			OVS_WIMAX1_DPID = configOptions.get("ovs-wimax1-dpid");
+			OVS_ETHERNET_DPID = configOptions.get("ovs-ethernet-dpid");
+
+			OVS_TAP_TO_WIFI0_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-wifi0-patch"));
+			OVS_TAP_TO_WIFI1_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-wifi1-patch"));
+			OVS_TAP_TO_WIMAX0_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-wimax0-patch"));
+			OVS_TAP_TO_WIMAX1_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-wimax1-patch"));
+			OVS_TAP_TO_ETHERNET_PATCH = Short.parseShort(configOptions.get("ovs-tap-to-ethernet-patch"));
+
+			OVS_WIFI0_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-wifi0-to-tap-patch"));
+			OVS_WIFI1_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-wifi1-to-tap-patch"));
+			OVS_WIMAX0_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-wimax0-to-tap-patch"));
+			OVS_WIMAX1_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-wimax1-to-tap-patch"));
+			OVS_ETHERNET_TO_TAP_PATCH = Short.parseShort(configOptions.get("ovs-ethernet-to-tap-patch"));
+
+			OVS_TAP_LOCAL_PORT = Short.parseShort(configOptions.get("ovs-tap-local-port"));
+			OVS_WIFI0_IFACE_PORT = Short.parseShort(configOptions.get("ovs-wifi0-iface-port"));
+			OVS_WIFI1_IFACE_PORT = Short.parseShort(configOptions.get("ovs-wifi1-iface-port"));
+			OVS_WIMAX0_IFACE_PORT = Short.parseShort(configOptions.get("ovs-wimax0-iface-port"));
+			OVS_WIMAX1_IFACE_PORT = Short.parseShort(configOptions.get("ovs-wimax1-iface-port"));
+			OVS_ETHERNET_IFACE_PORT = Short.parseShort(configOptions.get("ovs-ethernet-iface-port"));
+
 		} catch(Exception e) {
 			log.error("Incorrect Handover configuration options", e);
 			//throw e;
 		}
-		
+
 		ACTIVE_FLOWS = new ArrayList<String>();
 
 		/*try {
@@ -207,7 +219,25 @@ public class Handover implements IFloodlightModule {
 		return;
 	}
 
-	private void switchInterface(INTERFACES iface) {
+	private static String cmdExec(String cmdLine) {
+		String line;
+		String output = "";
+		try {
+			Process p = Runtime.getRuntime().exec(cmdLine);
+			BufferedReader input = new BufferedReader
+					(new InputStreamReader(p.getInputStream()));
+			while ((line = input.readLine()) != null) {
+				output += (line + '\n');
+			}
+			input.close();
+		}
+		catch (Exception ex) {
+			ex.printStackTrace();
+		}
+		return output;
+	}
+
+	private void switchInterface(String iface) {
 		OFFlowMod flow;
 		OFMatch match;
 		ArrayList<OFAction> actionList = new ArrayList<OFAction>();
@@ -216,56 +246,49 @@ public class Handover implements IFloodlightModule {
 		OFActionDataLayerSource dlSrcAction;
 		String flowName;
 		int flowLength;
-		
+
 		String ifaceOVSdpid;
 		String tapOVSdpid = OVS_TAP_DPID;
-		
+
 		short tapOVSpatchPort;
 		short tapOVShostPort = OVS_TAP_LOCAL_PORT;
 		short ifaceOVSifacePort;
 		short ifaceOVSpatchPort;
-		
-		byte[] ifaceMACaddr;
-		byte[] tapMACaddr = TAP_MAC;
 
-		// based on the iface chosen, set appropriate parameters (ideally from config file).
-		switch (iface) {
-			case WIFI0:
-				ifaceOVSdpid = OVS_WIFI0_DPID;
-				tapOVSpatchPort = OVS_TAP_TO_WIFI0_PATCH;
-				ifaceOVSifacePort = OVS_WIFI0_IFACE_PORT;
-				ifaceOVSpatchPort = OVS_WIFI0_TO_TAP_PATCH;
-				ifaceMACaddr = WIFI0_MAC;
-				break;
-			case WIFI1:
-				ifaceOVSdpid = OVS_WIFI1_DPID;
-				tapOVSpatchPort = OVS_TAP_TO_WIFI1_PATCH;
-				ifaceOVSifacePort = OVS_WIFI1_IFACE_PORT;
-				ifaceOVSpatchPort = OVS_WIFI1_TO_TAP_PATCH;
-				ifaceMACaddr = WIFI1_MAC;
-				break;
-			case WIMAX0:
-				ifaceOVSdpid = OVS_WIMAX0_DPID;
-				tapOVSpatchPort = OVS_TAP_TO_WIMAX0_PATCH;
-				ifaceOVSifacePort = OVS_WIMAX0_IFACE_PORT;
-				ifaceOVSpatchPort = OVS_WIMAX0_TO_TAP_PATCH;
-				ifaceMACaddr = WIMAX0_MAC;
-				break;
-			case WIMAX1:
-				ifaceOVSdpid = OVS_WIMAX1_DPID;
-				tapOVSpatchPort = OVS_TAP_TO_WIMAX1_PATCH;
-				ifaceOVSifacePort = OVS_WIMAX1_IFACE_PORT;
-				ifaceOVSpatchPort = OVS_WIMAX1_TO_TAP_PATCH;
-				ifaceMACaddr = WIMAX1_MAC;
-				break;
-			case ETHERNET:
-			default:
-				ifaceOVSdpid = OVS_ETHERNET_DPID;
-				tapOVSpatchPort = OVS_TAP_TO_ETHERNET_PATCH;
-				ifaceOVSifacePort = OVS_ETHERNET_IFACE_PORT;
-				ifaceOVSpatchPort = OVS_ETHERNET_TO_TAP_PATCH;
-				ifaceMACaddr = ETHERNET_MAC;
-				break;
+		byte[] ifaceMACaddr;
+		byte[] tapMACaddr = TAP_MAC;		
+
+		// based on the iface chosen, set appropriate parameters
+		if (iface == WIFI0_IFACE_NAME) {
+			ifaceOVSdpid = OVS_WIFI0_DPID;
+			tapOVSpatchPort = OVS_TAP_TO_WIFI0_PATCH;
+			ifaceOVSifacePort = OVS_WIFI0_IFACE_PORT;
+			ifaceOVSpatchPort = OVS_WIFI0_TO_TAP_PATCH;
+			ifaceMACaddr = WIFI0_MAC;
+		} else if (iface == WIFI1_IFACE_NAME) {
+			ifaceOVSdpid = OVS_WIFI1_DPID;
+			tapOVSpatchPort = OVS_TAP_TO_WIFI1_PATCH;
+			ifaceOVSifacePort = OVS_WIFI1_IFACE_PORT;
+			ifaceOVSpatchPort = OVS_WIFI1_TO_TAP_PATCH;
+			ifaceMACaddr = WIFI1_MAC;
+		} else if (iface == WIMAX0_IFACE_NAME) {
+			ifaceOVSdpid = OVS_WIMAX0_DPID;
+			tapOVSpatchPort = OVS_TAP_TO_WIMAX0_PATCH;
+			ifaceOVSifacePort = OVS_WIMAX0_IFACE_PORT;
+			ifaceOVSpatchPort = OVS_WIMAX0_TO_TAP_PATCH;
+			ifaceMACaddr = WIMAX0_MAC;
+		} else if (iface == WIMAX1_IFACE_NAME) {
+			ifaceOVSdpid = OVS_WIMAX1_DPID;
+			tapOVSpatchPort = OVS_TAP_TO_WIMAX1_PATCH;
+			ifaceOVSifacePort = OVS_WIMAX1_IFACE_PORT;
+			ifaceOVSpatchPort = OVS_WIMAX1_TO_TAP_PATCH;
+			ifaceMACaddr = WIMAX1_MAC;
+		} else {
+			ifaceOVSdpid = OVS_ETHERNET_DPID;
+			tapOVSpatchPort = OVS_TAP_TO_ETHERNET_PATCH;
+			ifaceOVSifacePort = OVS_ETHERNET_IFACE_PORT;
+			ifaceOVSpatchPort = OVS_ETHERNET_TO_TAP_PATCH;
+			ifaceMACaddr = ETHERNET_MAC;
 		}
 
 		// Remove old flows and switch only if we are switching to a different interface.
@@ -275,213 +298,215 @@ public class Handover implements IFloodlightModule {
 				log.debug("In prep. for switch, removing flow " + tmp);
 				sfp.deleteFlow(tmp);
 			}
-		
+
+			// update to the new interface we have been told to use
 			ACTIVE_INTERFACE = iface;
-			
-			// first, insert flows at the tap OVS. Do the MAC rewrites here (just to keep them all on one OVS).
-			// this means there should be no ARP flows at the tap OVS (all ARP packets will be sent to the controller auto-magically).
-			// tap --> patch (IP)
-			flow = new OFFlowMod();
-			match = new OFMatch();
-			outputAction = new OFActionOutput();
-			dlSrcAction = new OFActionDataLayerSource();
-			flowLength = OFFlowMod.MINIMUM_LENGTH;
-			match.setInputPort(tapOVShostPort);
-			match.setDataLayerType((short) 0x0800);
-			dlSrcAction.setType(OFActionType.SET_DL_SRC);
-			dlSrcAction.setDataLayerAddress(ifaceMACaddr);
-			dlSrcAction.setLength((short) OFActionDataLayerSource.MINIMUM_LENGTH);
-			flowLength = flowLength + dlSrcAction.getLengthU();
-			actionList.add(dlSrcAction);
-			outputAction.setType(OFActionType.OUTPUT);
-			outputAction.setPort(tapOVSpatchPort);
-			outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
-			flowLength = flowLength + outputAction.getLengthU();
-			actionList.add(outputAction);
-			flow.setCookie(0);
-			flow.setBufferId(-1);
-			flow.setOutPort(tapOVSpatchPort);
-			flow.setActions(actionList);
-			flow.setMatch(match);
-			flow.setPriority((short) 32768);
-			flow.setLengthU(flowLength);
-			flowName = "tap-to-patch-ip";
-			sfp.addFlow(flowName, flow, tapOVSdpid);
-			ACTIVE_FLOWS.add(flowName);
-			log.info("added flow on SW " + tapOVSdpid + flowName);
-			actionList.clear();
-			// tap --> patch (CONTROLLER) (ARP)
-			flow = new OFFlowMod();
-			match = new OFMatch();
-			flowLength = OFFlowMod.MINIMUM_LENGTH;
-			match.setInputPort(tapOVShostPort);
-			match.setDataLayerType((short) 0x0806);
-			outputAction.setType(OFActionType.OUTPUT);
-			outputAction.setPort(OFPort.OFPP_CONTROLLER.getValue());
-			outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
-			flowLength = flowLength + outputAction.getLengthU();
-			actionList.add(outputAction);
-			flow.setCookie(0);
-			flow.setBufferId(-1);
-			flow.setOutPort(OFPort.OFPP_CONTROLLER.getValue());
-			flow.setActions(actionList);
-			flow.setMatch(match);
-			flow.setPriority((short) 32768);
-			flow.setLengthU(flowLength);
-			flowName = "tap-to-patch(controller)-arp";
-			sfp.addFlow(flowName, flow, tapOVSdpid);
-			ACTIVE_FLOWS.add(flowName);
-			log.info("added flow on SW " + tapOVSdpid + flowName);
-			actionList.clear();
-			// tap <-- patch (IP)
-			flow = new OFFlowMod();
-			match = new OFMatch();
-			dlDstAction = new OFActionDataLayerDestination();
-			flowLength = OFFlowMod.MINIMUM_LENGTH;
-			match.setInputPort(tapOVSpatchPort);
-			match.setDataLayerType((short) 0x0800);
-			dlDstAction.setType(OFActionType.SET_DL_DST);
-			dlDstAction.setDataLayerAddress(tapMACaddr);
-			dlDstAction.setLength((short) OFActionDataLayerDestination.MINIMUM_LENGTH);
-			flowLength = flowLength + dlDstAction.getLengthU();
-			actionList.add(dlDstAction);
-			outputAction.setType(OFActionType.OUTPUT);
-			outputAction.setPort(tapOVShostPort);
-			outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
-			flowLength = flowLength + outputAction.getLengthU();
-			actionList.add(outputAction);
-			flow.setCookie(0);
-			flow.setBufferId(-1);
-			flow.setOutPort(tapOVShostPort);
-			flow.setActions(actionList);
-			flow.setMatch(match);
-			flow.setPriority((short) 32768);
-			flow.setLengthU(flowLength);
-			flowName = "tap-from-patch-ip";
-			sfp.addFlow(flowName, flow, tapOVSdpid);
-			ACTIVE_FLOWS.add(flowName);
-			log.info("added flow on SW " + tapOVSdpid + flowName);
-			actionList.clear();
-			// tap (CONTROLLER) <-- patch (ARP)
-			flow = new OFFlowMod();
-			match = new OFMatch();
-			flowLength = OFFlowMod.MINIMUM_LENGTH;
-			match.setInputPort(tapOVSpatchPort);
-			match.setDataLayerType((short) 0x0806);
-			outputAction.setType(OFActionType.OUTPUT);
-			outputAction.setPort(OFPort.OFPP_CONTROLLER.getValue());
-			outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
-			flowLength = flowLength + outputAction.getLengthU();
-			actionList.add(outputAction);
-			flow.setCookie(0);
-			flow.setBufferId(-1);
-			flow.setOutPort(OFPort.OFPP_CONTROLLER.getValue());
-			flow.setActions(actionList);
-			flow.setMatch(match);
-			flow.setPriority((short) 32768);
-			flow.setLengthU(flowLength);
-			flowName = "tap(controller)-from-patch-arp";
-			sfp.addFlow(flowName, flow, tapOVSdpid);
-			ACTIVE_FLOWS.add(flowName);
-			log.info("added flow on SW " + tapOVSdpid + flowName);
-			actionList.clear();
-	
-			// now, insert the flows on the OVS corresponding to the iface of choice.
-			// no rewrites should occur here. Forward all packets of any ethertype.
-			// iface <-- patch (IP)
-			flow = new OFFlowMod();
-			match = new OFMatch();
-			flowLength = OFFlowMod.MINIMUM_LENGTH;
-			match.setInputPort(ifaceOVSpatchPort);
-			match.setDataLayerType((short) 0x0800);
-			outputAction.setType(OFActionType.OUTPUT);
-			outputAction.setPort(ifaceOVSifacePort);
-			outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
-			flowLength = flowLength + outputAction.getLengthU();
-			actionList.add(outputAction);
-			flow.setCookie(0);
-			flow.setBufferId(-1);
-			flow.setOutPort(ifaceOVSifacePort);
-			flow.setActions(actionList);
-			flow.setMatch(match);
-			flow.setPriority((short) 32768);
-			flow.setLengthU(flowLength);
-			flowName = "iface-from-patch-ip";
-			sfp.addFlow(flowName, flow, ifaceOVSdpid);
-			ACTIVE_FLOWS.add(flowName);
-			log.info("added flow on SW " + ifaceOVSdpid + flowName);
-			actionList.clear();
-			// iface <-- patch (ARP)
-			flow = new OFFlowMod();
-			match = new OFMatch();
-			flowLength = OFFlowMod.MINIMUM_LENGTH;
-			match.setInputPort(ifaceOVSpatchPort);
-			match.setDataLayerType((short) 0x0806);
-			outputAction.setType(OFActionType.OUTPUT);
-			outputAction.setPort(ifaceOVSifacePort);
-			outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
-			flowLength = flowLength + outputAction.getLengthU();
-			actionList.add(outputAction);
-			flow.setCookie(0);
-			flow.setBufferId(-1);
-			flow.setOutPort(ifaceOVSifacePort);
-			flow.setActions(actionList);
-			flow.setMatch(match);
-			flow.setPriority((short) 32768);
-			flow.setLengthU(flowLength);
-			flowName = "iface-from-patch-arp";
-			sfp.addFlow(flowName, flow, ifaceOVSdpid);
-			ACTIVE_FLOWS.add(flowName);
-			log.info("added flow on SW " + ifaceOVSdpid + flowName);
-			actionList.clear();
-			// iface --> patch (IP)
-			flow = new OFFlowMod();
-			match = new OFMatch();
-			flowLength = OFFlowMod.MINIMUM_LENGTH;
-			match.setInputPort(ifaceOVSifacePort);
-			match.setDataLayerType((short) 0x0800);
-			outputAction.setType(OFActionType.OUTPUT);
-			outputAction.setPort(ifaceOVSpatchPort);
-			outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
-			flowLength = flowLength + outputAction.getLengthU();
-			actionList.add(outputAction);
-			flow.setCookie(0);
-			flow.setBufferId(-1);
-			flow.setOutPort(ifaceOVSpatchPort);
-			flow.setActions(actionList);
-			flow.setMatch(match);
-			flow.setPriority((short) 32768);
-			flow.setLengthU(flowLength);
-			flowName = "iface-to-patch-ip";
-			sfp.addFlow(flowName, flow, ifaceOVSdpid);
-			ACTIVE_FLOWS.add(flowName);
-			log.info("added flow on SW " + ifaceOVSdpid + flowName);
-			actionList.clear();
-			// iface --> patch (ARP)
-			flow = new OFFlowMod();
-			match = new OFMatch();
-			flowLength = OFFlowMod.MINIMUM_LENGTH;
-			match.setInputPort(ifaceOVSifacePort);
-			match.setDataLayerType((short) 0x0806);
-			outputAction.setType(OFActionType.OUTPUT);
-			outputAction.setPort(ifaceOVSpatchPort);
-			outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
-			flowLength = flowLength + outputAction.getLengthU();
-			actionList.add(outputAction);
-			flow.setCookie(0);
-			flow.setBufferId(-1);
-			flow.setOutPort(ifaceOVSpatchPort);
-			flow.setActions(actionList);
-			flow.setMatch(match);
-			flow.setPriority((short) 32768);
-			flow.setLengthU(flowLength);
-			flowName = "iface-to-patch-arp";
-			sfp.addFlow(flowName, flow, ifaceOVSdpid);
-			ACTIVE_FLOWS.add(flowName);
-			log.info("added flow on SW " + ifaceOVSdpid + flowName);
-			actionList.clear();
+
+			if (ACTIVE_INTERFACE != OFFLINE) {
+				// first, insert flows at the tap OVS. Do the MAC rewrites here (just to keep them all on one OVS).
+				// this means there should be no ARP flows at the tap OVS (all ARP packets will be sent to the controller auto-magically).
+				// tap --> patch (IP)
+				flow = new OFFlowMod();
+				match = new OFMatch();
+				outputAction = new OFActionOutput();
+				dlSrcAction = new OFActionDataLayerSource();
+				flowLength = OFFlowMod.MINIMUM_LENGTH;
+				match.setInputPort(tapOVShostPort);
+				match.setDataLayerType((short) 0x0800);
+				dlSrcAction.setType(OFActionType.SET_DL_SRC);
+				dlSrcAction.setDataLayerAddress(ifaceMACaddr);
+				dlSrcAction.setLength((short) OFActionDataLayerSource.MINIMUM_LENGTH);
+				flowLength = flowLength + dlSrcAction.getLengthU();
+				actionList.add(dlSrcAction);
+				outputAction.setType(OFActionType.OUTPUT);
+				outputAction.setPort(tapOVSpatchPort);
+				outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
+				flowLength = flowLength + outputAction.getLengthU();
+				actionList.add(outputAction);
+				flow.setCookie(0);
+				flow.setBufferId(-1);
+				flow.setOutPort(tapOVSpatchPort);
+				flow.setActions(actionList);
+				flow.setMatch(match);
+				flow.setPriority((short) 32768);
+				flow.setLengthU(flowLength);
+				flowName = "tap-to-patch-ip";
+				sfp.addFlow(flowName, flow, tapOVSdpid);
+				ACTIVE_FLOWS.add(flowName);
+				log.info("added flow on SW " + tapOVSdpid + flowName);
+				actionList.clear();
+				// tap --> patch (CONTROLLER) (ARP)
+				flow = new OFFlowMod();
+				match = new OFMatch();
+				flowLength = OFFlowMod.MINIMUM_LENGTH;
+				match.setInputPort(tapOVShostPort);
+				match.setDataLayerType((short) 0x0806);
+				outputAction.setType(OFActionType.OUTPUT);
+				outputAction.setPort(OFPort.OFPP_CONTROLLER.getValue());
+				outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
+				flowLength = flowLength + outputAction.getLengthU();
+				actionList.add(outputAction);
+				flow.setCookie(0);
+				flow.setBufferId(-1);
+				flow.setOutPort(OFPort.OFPP_CONTROLLER.getValue());
+				flow.setActions(actionList);
+				flow.setMatch(match);
+				flow.setPriority((short) 32768);
+				flow.setLengthU(flowLength);
+				flowName = "tap-to-patch(controller)-arp";
+				sfp.addFlow(flowName, flow, tapOVSdpid);
+				ACTIVE_FLOWS.add(flowName);
+				log.info("added flow on SW " + tapOVSdpid + flowName);
+				actionList.clear();
+				// tap <-- patch (IP)
+				flow = new OFFlowMod();
+				match = new OFMatch();
+				dlDstAction = new OFActionDataLayerDestination();
+				flowLength = OFFlowMod.MINIMUM_LENGTH;
+				match.setInputPort(tapOVSpatchPort);
+				match.setDataLayerType((short) 0x0800);
+				dlDstAction.setType(OFActionType.SET_DL_DST);
+				dlDstAction.setDataLayerAddress(tapMACaddr);
+				dlDstAction.setLength((short) OFActionDataLayerDestination.MINIMUM_LENGTH);
+				flowLength = flowLength + dlDstAction.getLengthU();
+				actionList.add(dlDstAction);
+				outputAction.setType(OFActionType.OUTPUT);
+				outputAction.setPort(tapOVShostPort);
+				outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
+				flowLength = flowLength + outputAction.getLengthU();
+				actionList.add(outputAction);
+				flow.setCookie(0);
+				flow.setBufferId(-1);
+				flow.setOutPort(tapOVShostPort);
+				flow.setActions(actionList);
+				flow.setMatch(match);
+				flow.setPriority((short) 32768);
+				flow.setLengthU(flowLength);
+				flowName = "tap-from-patch-ip";
+				sfp.addFlow(flowName, flow, tapOVSdpid);
+				ACTIVE_FLOWS.add(flowName);
+				log.info("added flow on SW " + tapOVSdpid + flowName);
+				actionList.clear();
+				// tap (CONTROLLER) <-- patch (ARP)
+				flow = new OFFlowMod();
+				match = new OFMatch();
+				flowLength = OFFlowMod.MINIMUM_LENGTH;
+				match.setInputPort(tapOVSpatchPort);
+				match.setDataLayerType((short) 0x0806);
+				outputAction.setType(OFActionType.OUTPUT);
+				outputAction.setPort(OFPort.OFPP_CONTROLLER.getValue());
+				outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
+				flowLength = flowLength + outputAction.getLengthU();
+				actionList.add(outputAction);
+				flow.setCookie(0);
+				flow.setBufferId(-1);
+				flow.setOutPort(OFPort.OFPP_CONTROLLER.getValue());
+				flow.setActions(actionList);
+				flow.setMatch(match);
+				flow.setPriority((short) 32768);
+				flow.setLengthU(flowLength);
+				flowName = "tap(controller)-from-patch-arp";
+				sfp.addFlow(flowName, flow, tapOVSdpid);
+				ACTIVE_FLOWS.add(flowName);
+				log.info("added flow on SW " + tapOVSdpid + flowName);
+				actionList.clear();
+
+				// now, insert the flows on the OVS corresponding to the iface of choice.
+				// no rewrites should occur here. Forward all packets of any ethertype.
+				// iface <-- patch (IP)
+				flow = new OFFlowMod();
+				match = new OFMatch();
+				flowLength = OFFlowMod.MINIMUM_LENGTH;
+				match.setInputPort(ifaceOVSpatchPort);
+				match.setDataLayerType((short) 0x0800);
+				outputAction.setType(OFActionType.OUTPUT);
+				outputAction.setPort(ifaceOVSifacePort);
+				outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
+				flowLength = flowLength + outputAction.getLengthU();
+				actionList.add(outputAction);
+				flow.setCookie(0);
+				flow.setBufferId(-1);
+				flow.setOutPort(ifaceOVSifacePort);
+				flow.setActions(actionList);
+				flow.setMatch(match);
+				flow.setPriority((short) 32768);
+				flow.setLengthU(flowLength);
+				flowName = "iface-from-patch-ip";
+				sfp.addFlow(flowName, flow, ifaceOVSdpid);
+				ACTIVE_FLOWS.add(flowName);
+				log.info("added flow on SW " + ifaceOVSdpid + flowName);
+				actionList.clear();
+				// iface <-- patch (ARP)
+				flow = new OFFlowMod();
+				match = new OFMatch();
+				flowLength = OFFlowMod.MINIMUM_LENGTH;
+				match.setInputPort(ifaceOVSpatchPort);
+				match.setDataLayerType((short) 0x0806);
+				outputAction.setType(OFActionType.OUTPUT);
+				outputAction.setPort(ifaceOVSifacePort);
+				outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
+				flowLength = flowLength + outputAction.getLengthU();
+				actionList.add(outputAction);
+				flow.setCookie(0);
+				flow.setBufferId(-1);
+				flow.setOutPort(ifaceOVSifacePort);
+				flow.setActions(actionList);
+				flow.setMatch(match);
+				flow.setPriority((short) 32768);
+				flow.setLengthU(flowLength);
+				flowName = "iface-from-patch-arp";
+				sfp.addFlow(flowName, flow, ifaceOVSdpid);
+				ACTIVE_FLOWS.add(flowName);
+				log.info("added flow on SW " + ifaceOVSdpid + flowName);
+				actionList.clear();
+				// iface --> patch (IP)
+				flow = new OFFlowMod();
+				match = new OFMatch();
+				flowLength = OFFlowMod.MINIMUM_LENGTH;
+				match.setInputPort(ifaceOVSifacePort);
+				match.setDataLayerType((short) 0x0800);
+				outputAction.setType(OFActionType.OUTPUT);
+				outputAction.setPort(ifaceOVSpatchPort);
+				outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
+				flowLength = flowLength + outputAction.getLengthU();
+				actionList.add(outputAction);
+				flow.setCookie(0);
+				flow.setBufferId(-1);
+				flow.setOutPort(ifaceOVSpatchPort);
+				flow.setActions(actionList);
+				flow.setMatch(match);
+				flow.setPriority((short) 32768);
+				flow.setLengthU(flowLength);
+				flowName = "iface-to-patch-ip";
+				sfp.addFlow(flowName, flow, ifaceOVSdpid);
+				ACTIVE_FLOWS.add(flowName);
+				log.info("added flow on SW " + ifaceOVSdpid + flowName);
+				actionList.clear();
+				// iface --> patch (ARP)
+				flow = new OFFlowMod();
+				match = new OFMatch();
+				flowLength = OFFlowMod.MINIMUM_LENGTH;
+				match.setInputPort(ifaceOVSifacePort);
+				match.setDataLayerType((short) 0x0806);
+				outputAction.setType(OFActionType.OUTPUT);
+				outputAction.setPort(ifaceOVSpatchPort);
+				outputAction.setLength((short) OFActionOutput.MINIMUM_LENGTH);
+				flowLength = flowLength + outputAction.getLengthU();
+				actionList.add(outputAction);
+				flow.setCookie(0);
+				flow.setBufferId(-1);
+				flow.setOutPort(ifaceOVSpatchPort);
+				flow.setActions(actionList);
+				flow.setMatch(match);
+				flow.setPriority((short) 32768);
+				flow.setLengthU(flowLength);
+				flowName = "iface-to-patch-arp";
+				sfp.addFlow(flowName, flow, ifaceOVSdpid);
+				ACTIVE_FLOWS.add(flowName);
+				log.info("added flow on SW " + ifaceOVSdpid + flowName);
+				actionList.clear();
+			}
 		}
-		
 		return;
 	}
 
@@ -495,16 +520,39 @@ public class Handover implements IFloodlightModule {
 
 			//we need a list of all interface names, this shouldn't be hard coded
 			ArrayList<String> interface_names = new ArrayList<String>();
-			interface_names.add("wmx0");
-			interface_names.add("eth0");
-			interface_names.add("wlan0");
+			if (WIFI0_IFACE_NAME != "none") {
+				interface_names.add(WIFI0_IFACE_NAME);
+			}
+			if (WIFI1_IFACE_NAME != "none") {
+				interface_names.add(WIFI1_IFACE_NAME);
+			}
+			if (WIMAX0_IFACE_NAME != "none") {
+				interface_names.add(WIMAX0_IFACE_NAME);
+			}
+			if (WIMAX1_IFACE_NAME != "none") {
+				interface_names.add(WIMAX1_IFACE_NAME);
+			}
+			if (ETHERNET_IFACE_NAME != "none") {
+				interface_names.add(ETHERNET_IFACE_NAME);
+			}
 
 			//create a JSON object for every interface name, containing collected details
 			ArrayList<JSONObject> ifaceObjs = new ArrayList<JSONObject>();
 			for(String iface : interface_names){
 				JSONObject obj = new JSONObject();
-				obj.put("name", iface);
-				obj.put("signalDbm", -60);
+				if (iface.matches("wlan") || iface.matches("wifi")) {
+					obj.put("name", iface);
+					obj.put("signalDbm", Integer.parseInt(cmdExec("iwconfig " + iface + " | grep -o level=-[0-9]*").split("=")[1]));
+				} else if (iface.matches("eth")) {
+					// handle ethernet interfaces
+					if (!cmdExec("ifconfig " + iface + " | grep -o RUNNING").isEmpty()) {
+						obj.put("name", iface);
+						obj.put("signalDbm", -10); // the lower the db, the higher the link quality
+					} else {
+						// don't provide it if the link is down
+					}
+					// need to handle WIMAX interfaces that begin with "eth". How to get signal strength from AWB, Teltonika, GreenPacket?
+				}
 				ifaceObjs.add(obj);
 			}
 
@@ -529,10 +577,16 @@ public class Handover implements IFloodlightModule {
 			//parse JSON response
 			JSONObject responseObj = new JSONObject(body);
 			log.debug("Switching to: " + responseObj.getString("interface"));
+
+			// return chosen interface
+			if (responseObj.getString("interface") != null && !responseObj.getString("interface").isEmpty()) {
+				return responseObj.getString("interface");
+			}
+
 		} catch(Exception e) {
 			e.printStackTrace();
 		} 
-		return null;
+		return OFFLINE;
 	}
 
 	class GRCProbe implements Runnable {
@@ -540,7 +594,7 @@ public class Handover implements IFloodlightModule {
 		public void run() {
 			log.info("Asking GRC (Cybertiger) for a handover decision...");
 			// do it here
-			String response = askGRC();
+			switchInterface(askGRC());
 			return;
 		}
 	} // END GRCProbe Class
