@@ -130,7 +130,7 @@ public class Handover implements IFloodlightModule {
 	private static ArrayList<String> ACTIVE_FLOWS;
 	private static final String OFFLINE = "offline";
 	private static String ACTIVE_NETWORK_TYPE = OFFLINE;
-	
+
 	@Override
 	public Collection<Class<? extends IFloodlightService>> getModuleServices() {
 		return null;
@@ -258,6 +258,7 @@ public class Handover implements IFloodlightModule {
 					log.debug("GPSD: Updated DEVICE");
 				}
 			});
+
 			GPSD_CONN.start();
 			
 			log.debug("Version: " + GPSD_CONN.version().toString());
@@ -590,7 +591,7 @@ public class Handover implements IFloodlightModule {
 				obj.put("operator", netType.equals("Wifi")? "" :"Clemson");
 				netTypeObjs.add(obj);
 			}
-			
+
 			//create a JSON array containing all of our JSON objects, and include it in our request
 			log.debug("Latitude: " + Double.toString(GPSD_LATITUDE) + ", Longitude: " + Double.toString(GPSD_LONGITUDE));
 			JSONArray jNetTypesArray = new JSONArray(netTypeObjs);
@@ -602,7 +603,7 @@ public class Handover implements IFloodlightModule {
 			httpPost.setEntity(new UrlEncodedFormEntity(nvps));
 			HttpResponse response = httpclient.execute(httpPost);
 			int status = response.getStatusLine().getStatusCode();
-			
+
 			//retreive JSON response
 			String body;
 			if(status >= 200 && status < 300){
@@ -611,7 +612,7 @@ public class Handover implements IFloodlightModule {
 			} else {
 				body = "ERROR";
 			}
-			
+
 			//parse JSON response
 			JSONObject responseObj = new JSONObject(body);
 			String responseNet = responseObj.getString("network");
