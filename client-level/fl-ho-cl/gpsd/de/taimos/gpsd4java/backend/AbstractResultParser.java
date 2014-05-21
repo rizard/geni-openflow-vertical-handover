@@ -104,7 +104,7 @@ public abstract class AbstractResultParser {
 			AbstractResultParser.LOG.log(Level.FINE, fieldName + ": {0}", text);
 
 			if (text != null) {
-				final Date date = this.dateFormat.parse(text);
+				final Date date = new Date(Double.valueOf(text).longValue());//this.dateFormat.parse(text);
 				if (AbstractResultParser.LOG.isLoggable(Level.FINE)) {
 					final String ds = DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL).format(date);
 					AbstractResultParser.LOG.log(Level.FINE, "Date: {0}", ds);
