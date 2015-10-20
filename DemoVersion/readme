@@ -1,28 +1,28 @@
 Please check the attached pdf file in the comment for configuration steps with figures. 
 
 
-1.	Once you log in the mobile node, enter the folder geniclosure. You can see a list of scripts there for you to setup the handover experiment.   
+1.Once you log in the mobile node, enter the folder geniclosure. You can see a list of scripts there for you to setup the handover experiment.   
 
-2.	Run script “configInterfaces.sh” to bring up the WiMAX interface and the WiFi Interface, as shown as eth2 and wlan0 in Figure (1). The WiMAX is connected through a dongle. Thus, the WiMAX connection is shown as an Ethernet interface. 
+2.Run script “configInterfaces.sh” to bring up the WiMAX interface and the WiFi Interface, as shown as eth2 and wlan0 in Figure (1). The WiMAX is connected through a dongle. Thus, the WiMAX connection is shown as an Ethernet interface. 
 Figure (1) Bring up Interfaces
 
-3.	Run script “startOVS.sh” to bring up the OVS used for transparent handover, as shown in Figure (2)
+3.Run script “startOVS.sh” to bring up the OVS used for transparent handover, as shown in Figure (2)
 Figure (2) Bring up OVS
 
-4.	Run script “onesystem_setup.sh” to configure the OVS and connect the WiFi interface to our test AP. Note that we have disabled the network-manager on the machine. Thus we use iwconfig to build the WiFi connection in the script. After this, we can run “sudo ovs-vsctl show” to check the configuration of the OVS. 
+4.Run script “onesystem_setup.sh” to configure the OVS and connect the WiFi interface to our test AP. Note that we have disabled the network-manager on the machine. Thus we use iwconfig to build the WiFi connection in the script. After this, we can run “sudo ovs-vsctl show” to check the configuration of the OVS. 
 Figure (3) OVS Configuration
 As shown in Figure (3), the OVS has three ports. Port “br_tap” is the local interface of the OVS Bridge. It will be used as the default interface for all application traffic. Port “wlan0” connects to the WiFi interface. Port “wmaxtun” is a gre tunnel to eth5 of the handover root node (130.127.38.133) built upon the WiMAX interface.   Basically, application packets received at port “br_tap” will be forwarded out through either port “wlan0” or port “wmaxtun”. Forwarding out through “wlan0”/”wmaxtun” means that your application is using WiFi/WiMAX. 
 
-5.	Run script “initial_flows_wifi.sh” (“initial_flows_flow.sh”) to indicate that your application will use WiFi (WiMAX) in the beginning. This will insert corresponding flow entry into the OVS. Figure (4) shows the flow entries after running “initial_flows_wifi.sh”
+5.Run script “initial_flows_wifi.sh” (“initial_flows_flow.sh”) to indicate that your application will use WiFi (WiMAX) in the beginning. This will insert corresponding flow entry into the OVS. Figure (4) shows the flow entries after running “initial_flows_wifi.sh”
 Figure (4) Initial Flow Entries for WiFi in OVS
 
-6.	Run script “dhclient_tap.sh” to get an IP for br_tap and meanwhile, notify the root node which network is currently being used (The root node needs to know which network is currently being used so that it knows which way it should use to send packets back to you). After this, you can see that br_tap has an IP address of “192.168.4.8”, as shown in Figure (5).
+6.Run script “dhclient_tap.sh” to get an IP for br_tap and meanwhile, notify the root node which network is currently being used (The root node needs to know which network is currently being used so that it knows which way it should use to send packets back to you). After this, you can see that br_tap has an IP address of “192.168.4.8”, as shown in Figure (5).
 Figure (5) IP of br_tap
 
-7.	Run script “add_default_route.sh” to set br_tap as the default interface for all application packets. The correct routing table setting is shown in Figure (6).
+7.Run script “add_default_route.sh” to set br_tap as the default interface for all application packets. The correct routing table setting is shown in Figure (6).
 Figure (6) IP Routing Table
 
-8.	Now you are all set for the configuration. As mentioned above, we set WiFi as the networking being used in the beginning. Then, to switch to WiMAX network, you only need to run the script “switch_from_wifi_to_wmax.sh”. After this, to switch back to WiFi again, you can run script “switch_from_wmax_to_wifi.sh”.  Figure (7) illustrates two transparent handover. First, at icmp_req=17, we switch to WiMAX. After this, we see that the RTT increases to around 100ms, which represents the WiMAX. Second, at icmp_req=27, we switch back to WiFi. After this, the RTT falls to around 25ms, which represents the WiFi. 
+8.Now you are all set for the configuration. As mentioned above, we set WiFi as the networking being used in the beginning. Then, to switch to WiMAX network, you only need to run the script “switch_from_wifi_to_wmax.sh”. After this, to switch back to WiFi again, you can run script “switch_from_wmax_to_wifi.sh”.  Figure (7) illustrates two transparent handover. First, at icmp_req=17, we switch to WiMAX. After this, we see that the RTT increases to around 100ms, which represents the WiMAX. Second, at icmp_req=27, we switch back to WiFi. After this, the RTT falls to around 25ms, which represents the WiFi. 
 Figure (7) Switch to WiMax and then back to WiFi
 
 
