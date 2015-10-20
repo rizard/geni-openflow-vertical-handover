@@ -1,0 +1,3 @@
+#The remote IPs need to updated 
+sudo ovs-vsctl add-port br_AP1 eth5_tun -- set interface eth5_tun type=gre options:remote_ip=198.21.181.122
+sudo ovs-vsctl add-port br_AP2 eth6_tun -- set interface eth6_tun type=gre options:remote_ip=130.127.38.134
