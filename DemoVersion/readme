@@ -7,6 +7,8 @@ This is a version created in the lab for the demo of Wimax-WiFi handover. We hav
 3) On the WiMAX side, we have built a tunnel from the WiMAX interface to the corresponding interface on the root node. This is because our current WiMAX dongle cannot pass dhcp messages, which are used in this handover system to notify the root node which side the client node is on. Such a problem will not exisit when we switch to LTE since the LTE dongle has a mode to pass dhcp messages.  The drawback of the tunnel scheme is that it cannot support multiple clients well. 
 
 The overall structure of the system is as below
+
+
                                 | (campus network)
                           -------------                               OVS-root
                           |  root node |                             /     \  (OVS structure on root node)
