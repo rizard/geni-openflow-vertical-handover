@@ -8,10 +8,10 @@ This is a version created in the lab for the demo of Wimax-WiFi handover. We hav
 
 The overall structure of the system is as below
                                 | (campus network)
-                          -------------                                OVS-root
-                          |  root node |                               /     \  (OVS structure on root node)
-                           --------------                        OVS-WiMax   OVS-Wifi
-                             |        \                               |         \
+                          -------------                               OVS-root
+                          |  root node |                             /     \  (OVS structure on root node)
+                           --------------                       OVS-WiMax   OVS-Wifi
+                             |        \                             |         \
                              |         \ (GRE tunnel)                       
                              |    ------------                             \
                (GRE tunnel)  |    | WiFi AP2 | (a laptop)                OVS-eth 
