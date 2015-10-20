@@ -27,7 +27,7 @@ The overall structure of the system is as below
                          ---------------
 
 
-The overall configuration Please check the attached pdf file in the comment for configuration steps with figures. 
+The overall configuration Please check the attached pdf file named  "WiMAX-WiFi Handover Tutorial.pdf" for configuration steps with figures. 
 
 1.Once you log in the mobile node, enter the folder geniclosure. You can see a list of scripts there for you to setup the handover experiment.   
 
