@@ -7,22 +7,22 @@ This is a version created in the lab for the demo of Wimax-WiFi handover. We hav
 3) On the WiMAX side, we have built a tunnel from the WiMAX interface to the corresponding interface on the root node. This is because our current WiMAX dongle cannot pass dhcp messages, which are used in this handover system to notify the root node which side the client node is on. Such a problem will not exisit when we switch to LTE since the LTE dongle has a mode to pass dhcp messages.  The drawback of the tunnel scheme is that it cannot support multiple clients well. 
 
 The overall structure of the system is as below
-                                                | (campus network)
-                                          -------------                        OVS-root
-                                          |  root node |                       /     \  (OVS structure on root node)
-                                           --------------                OVS-WiMax   OVS-Wifi
-                                             |        \                       |         \
-                                             |         \ (GRE tunnel)                       \
-                                             |    ------------                           OVS-eth
-                               (GRE tunnel)  |    | WiFi AP2 | (a laptop in the lab)        |(OVS stucture on AP node)
-                                             |    ------------                           OVS-Wifi
-                                             |          /                                  /
-                                             |         / (wifi connection)
-                                       |WiMAX|dongel| /
-                                             |       /
-                                         ---------------                       |     /
-                                         | client node |                     OVS-client   (ovs structure on client)
-                                         ---------------
+                                | (campus network)
+                          -------------                                OVS-root
+                          |  root node |                               /     \  (OVS structure on root node)
+                           --------------                        OVS-WiMax   OVS-Wifi
+                             |        \                               |         \
+                            |         \ (GRE tunnel)                       
+                             |    ------------                             \
+               (GRE tunnel)  |    | WiFi AP2 | (a laptop)                OVS-eth 
+                             |    ------------                              |    (OVS stucture on AP node)
+                             |          /                                OVS-Wifi 
+                             |         / (wifi connection)                  /
+                       |WiMAX|dongel| /
+                             |       /
+                         ---------------                               |     /
+                         | client node |                             OVS-client  (OVS structure on client)
+                         ---------------
 
 
 The overall configuration Please check the attached pdf file in the comment for configuration steps with figures. 
