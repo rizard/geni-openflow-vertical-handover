@@ -1,5 +1,31 @@
-Please check the attached pdf file in the comment for configuration steps with figures. 
+This is a version created in the lab for the demo of Wimax-WiFi handover. We have made three changes based on the original design stated in the upper level of this repository. However, the overall design principle is still the same. The three changes are:
 
+1) On the client node, we have changed the number of OVSs from 3 to 1. Originally, we designed 3 OVSs to overcome an unidentified issue when attaching two interfaces to one OVS. This problem has disappeared with recent versions of OVS. Thus, only one OVS is used on the client node. 
+
+2) On the client node, we are using the OVS commond to insert/modify flows on the OVS directly, rather than using the REST API of the floodlight controller. Thus, there is no floodlight controller on the client node. Such a change does not change the principle that the concept of SDN (i.e., OpenFlow) is used to guide traffic on the client node. However, considering that the floodlight controller allows remote access, which can potentially offer additional functions. The original method that uses a floodlight controller on the client is more preferred, and the design in this version is only for reference. 
+
+3) On the WiMAX side, we have built a tunnel from the WiMAX interface to the corresponding interface on the root node. This is because our current WiMAX dongle cannot pass dhcp messages, which are used in this handover system to notify the root node which side the client node is on. Such a problem will not exisit when we switch to LTE since the LTE dongle has a mode to pass dhcp messages.  The drawback of the tunnel scheme is that it cannot support multiple clients well. 
+
+The overall structure of the system is as below
+                                                | (campus network)
+                                          -------------                        OVS-root
+                                          |  root node |                       /     \  (OVS structure on root node)
+                                           --------------                OVS-WiMax   OVS-Wifi
+                                             |        \                       |         \
+                                             |         \ (GRE tunnel)                       \
+                                             |    ------------                           OVS-eth
+                               (GRE tunnel)  |    | WiFi AP2 | (a laptop in the lab)        |(OVS stucture on AP node)
+                                             |    ------------                           OVS-Wifi
+                                             |          /                                  /
+                                             |         / (wifi connection)
+                                       |WiMAX|dongel| /
+                                             |       /
+                                         ---------------                       |     /
+                                         | client node |                     OVS-client   (ovs structure on client)
+                                         ---------------
+
+
+The overall configuration Please check the attached pdf file in the comment for configuration steps with figures. 
 
 1.Once you log in the mobile node, enter the folder geniclosure. You can see a list of scripts there for you to setup the handover experiment.   
 
