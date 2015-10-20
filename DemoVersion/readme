@@ -12,7 +12,7 @@ The overall structure of the system is as below
                           |  root node |                               /     \  (OVS structure on root node)
                            --------------                        OVS-WiMax   OVS-Wifi
                              |        \                               |         \
-                            |         \ (GRE tunnel)                       
+                             |         \ (GRE tunnel)                       
                              |    ------------                             \
                (GRE tunnel)  |    | WiFi AP2 | (a laptop)                OVS-eth 
                              |    ------------                              |    (OVS stucture on AP node)
