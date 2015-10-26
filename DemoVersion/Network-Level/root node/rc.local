@@ -1,0 +1,81 @@
+#!/bin/sh -e
+#
+# rc.local
+#
+# This script is executed at the end of each multiuser runlevel.
+# Make sure that the script will "exit 0" on success or any other
+# value on error.
+#
+# In order to enable or disable this script just change the execution
+# bits.
+#
+# By default this script does nothing.
+
+sudo /sbin/modprobe openvswitch
+sudo /sbin/modinfo openvswitch
+sudo ovsdb-server --remote=punix:/usr/local/var/run/openvswitch/db.sock \
+                     --remote=db:Open_vSwitch,Open_vSwitch,manager_options \
+                     --private-key=db:Open_vSwitch,SSL,private_key \
+                     --certificate=db:Open_vSwitch,SSL,certificate \
+                     --bootstrap-ca-cert=db:Open_vSwitch,SSL,ca_cert \
+                     --pidfile --detach
+sudo ovs-vsctl --no-wait init
+sudo ovs-vswitchd --pidfile --detach
+sudo ovs-vsctl show
+
+echo "Creating Bridges"
+sudo ovs-vsctl -- --may-exist add-br br_root -- set bridge br_root other-config=datapath-id=0000000000000101 -- set bridge br_root other-config:hwaddr=06:c6:3c:ff:b8:49
+sudo ovs-vsctl -- --may-exist add-br br_AP1 -- set bridge br_AP1 other-config=datapath-id=0000000000000102 -- set bridge br_AP1  other-config:hwaddr=4e:a5:b5:d6:cf:45
+sudo ovs-vsctl -- --may-exist add-br br_AP2 -- set bridge br_AP2 other-config=datapath-id=0000000000000103 -- set bridge br_AP2 other-config:hwaddr=5e:d8:bf:6c:48:4d
+
+
+echo "Bringing the bridges up"
+sudo ifconfig br_root up
+sudo ifconfig br_AP1 up
+sudo ifconfig br_AP2 up
+
+echo "Creating Patch ports"
+sudo ovs-vsctl  -- --may-exist add-port br_root root_patch_AP1\
+ -- set interface root_patch_AP1 type=patch options:peer=AP1_patch_root\
+ -- --may-exist add-port br_AP1 AP1_patch_root\
+ -- set interface AP1_patch_root type=patch options:peer=root_patch_AP1
+
+sudo ovs-vsctl  -- --may-exist add-port br_root root_patch_AP2\
+ -- set interface root_patch_AP2 type=patch options:peer=AP2_patch_root\
+ -- --may-exist add-port br_AP2 AP2_patch_root\
+ -- set interface AP2_patch_root type=patch options:peer=root_patch_AP2
+
+
+
+echo "Adding addresses on br_AP1 abd br_AP2"
+sudo ip addr add 192.168.4.1/24 broadcast 192.168.4.255 dev br_AP1
+sudo ip addr add 192.168.4.200/24 broadcast 192.168.4.255 dev br_AP2
+sudo ip addr add 192.168.4.128/24 broadcast 192.3.4.255 dev br_root
+
+echo "Enabling IP forwarding"
+echo "1" > /proc/sys/net/ipv4/ip_forward
+
+echo "Setting up NAT"
+iptables -t nat -A POSTROUTING -o eth2 -j MASQUERADE
+
+echo "Adding controller information for br_root"
+sudo ovs-vsctl set bridge br_root other_config:disable-in-band=true
+sudo ovs-vsctl set-controller br_root tcp:127.0.0.1:6633 
+sudo ovs-vsctl set-fail-mode br_root secure
+
+echo "Adding controller information for br_AP1"
+sudo ovs-vsctl set bridge br_AP1 other_config:disable-in-band=true
+sudo ovs-vsctl set-controller br_AP1 tcp:127.0.0.1:6633 
+sudo ovs-vsctl set-fail-mode br_AP1 secure
+
+echo "Adding controller information for br_AP2"
+sudo ovs-vsctl set bridge br_AP2 other_config:disable-in-band=true
+sudo ovs-vsctl set-controller br_AP2 tcp:127.0.0.1:6633 
+sudo ovs-vsctl set-fail-mode br_AP2 secure
+
+echo "Deleting the static routes through br_AP1 and br_AP2"
+ip route del 192.168.4.0/24 dev br_AP1
+ip route del 192.168.4.0/24 dev br_AP2
+#ip route flush table main
+
+exit 0
